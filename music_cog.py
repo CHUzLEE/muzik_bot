@@ -1,4 +1,5 @@
 from ast import alias
+from curses.ascii import islower
 import json
 from pickle import FALSE
 import discord
@@ -21,6 +22,7 @@ class music_cog(commands.Cog):
         self.is_playing = False
         self.is_paused = False
         self.first = ''
+        self.isLooped = False
         
 
         # 2d array containing [song, Voicechannel]
@@ -36,12 +38,13 @@ class music_cog(commands.Cog):
         self.playlist_list = []
         with  yt_dlp.YoutubeDL(self.YDL_OPTIONS) as ydl:
             try: 
-                if 'youtube.com' in item:
-                    info = ydl.extract_info (item, download=False)
-                else: 
+                if '&list=' in item:
                     info = ydl.extract_info("ytsearch:%s" % item, download=False)['entries'][0]
                     self.playlist_list.append({ 'source': info['url'], 'title': info['title'], 'channel': info['channel'] })
-                    return self.playlist_list
+                    return self.playlist_list   
+                else: 
+                     info = ydl.extract_info (item, download=False)
+                    
             except Exception: 
                 print("Hiba:  search_play url extract")
                 return False
@@ -61,13 +64,15 @@ class music_cog(commands.Cog):
             m_url = self.music_queue[0][0]['source']
             self.first = self.music_queue[0][0]['title'] + ' -> Uploader: ' + self.music_queue[0][0]['channel']
             #remove the first element as you are currently playing it
-            self.music_queue.pop(0)
+            if self.isLooped:
+                self.music_queue.append(self.music_queue.pop(0))
+            else:
+                self.music_queue.pop(0)
             with  yt_dlp.YoutubeDL(self.YDL_OPTIONS) as ydl:
                 try: 
                     info =  ydl.extract_info (m_url, download=False)
                 except Exception: 
                     print("Hiba:  play_next() method  url extract")
-                    #pass
             if info  == None:
                 self.play_next()
             else:
@@ -96,13 +101,15 @@ class music_cog(commands.Cog):
             
             #remove the first element as you are currently playing it
             self.first = self.music_queue[0][0]['title'] + ' -> Uploader: ' + self.music_queue[0][0]['channel']
-            self.music_queue.pop(0)
+            if self.isLooped:
+                self.music_queue.append(self.music_queue.pop(0))
+            else:
+                self.music_queue.pop(0)
             with  yt_dlp.YoutubeDL(self.YDL_OPTIONS) as ydl:
                 try: 
                     info =  ydl.extract_info (m_url, download=False)
                 except Exception: 
                     print("Hiba:  play_music() method  url extract")
-                    #pass
             if info == None:
                 self.play_next()
             else:
@@ -133,7 +140,7 @@ class music_cog(commands.Cog):
                     await self.play_music(ctx)
 
     @commands.command(name="pause",  aliases=["stop"], help="Pauses the current song being played")
-    async def pause(self, ctx, *args):
+    async def pause(self, ctx):
         if self.is_playing:
             self.is_playing = False
             self.is_paused = True
@@ -146,7 +153,7 @@ class music_cog(commands.Cog):
             await ctx.send("resuming")
 
     @commands.command(name = "resume", aliases=["r"], help="Resumes playing with the discord bot")
-    async def resume(self, ctx, *args):
+    async def resume(self, ctx):
         if self.is_paused:
             self.is_paused = False
             self.is_playing = True
@@ -181,7 +188,6 @@ class music_cog(commands.Cog):
 
     @commands.command(name="clear", aliases=["c", "bin"], help="Stops the music and clears the queue")
     async def clear(self, ctx):
-        # and self.is_playing 
         self.music_queue = []
         self.first = ""
         self.is_paused = False
@@ -205,3 +211,16 @@ class music_cog(commands.Cog):
     async def shuffle(self, ctx):
         random.shuffle(self.music_queue)
         await ctx.send("Mix mixed")
+    
+
+    @commands.command(name="loop", aliases=["lp"], help="Looping the queue")
+    async def shuffle(self, ctx):
+        if self.isLooped == False:
+            #puts the currently playing song to loop as well
+            if self.first != "":
+                self.music_queue.append(self.first)
+            self.isLooped = True
+            await ctx.send("Loop on")
+        else:
+            self.isLooped = False
+            await ctx.send("Loop off")
