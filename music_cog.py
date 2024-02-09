@@ -1,7 +1,9 @@
 from ast import alias
+from audioop import reverse
 from curses.ascii import islower
 import json
 from pickle import FALSE
+from re import A
 import discord
 from discord.ext import commands
 import random
@@ -28,34 +30,40 @@ class music_cog(commands.Cog):
         # 2d array containing [song, Voicechannel]
         self.music_queue = []
         #self.YDL_OPTIONS = {'format': 'bestaudio/best', 'noplaylist':True, 'skip_unavailable_fragments': True, 'extract_flat': True}
+        #this is the audio player
         self.FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+        
+        #for extraxting the youtube video information
         self.YDL_OPTIONS = {'format': 'bestaudio/best','extract_flat': True, 'ignoreerrors': True, 'skip_unavailable_fragments': True, 'quiet': False}
 
+        #voice channel info
         self.vc = None
+        #temp list to append to queue
         self.playlist_list = []
     #search playlist
     def search_play(self, item):
         self.playlist_list = []
         with  yt_dlp.YoutubeDL(self.YDL_OPTIONS) as ydl:
             try: 
+                #check if its a playlist, and we only extraxt the videos info
                 if '&list=' in item:
                     info = ydl.extract_info("ytsearch:%s" % item, download=False)['entries'][0]
                     self.playlist_list.append({ 'source': info['url'], 'title': info['title'], 'channel': info['channel'] })
-                    return self.playlist_list   
+                    return self.playlist_list  
                 else: 
-                     info = ydl.extract_info (item, download=False)
-                    
+                     info = ydl.extract_info (item, download=False)    
+                     
+                if info['webpage_url_basename'] == 'watch':
+                    self.playlist_list.append({ 'source': item, 'title': info['title'], 'channel': info['channel'] })
+                else:
+                    for videos in  info['entries']:
+                        if videos != None and videos['channel'] != None:
+                            self.playlist_list.append({ 'source': videos['url'], 'title': videos['title'], 'channel': videos['channel']})
+                return self.playlist_list       
             except Exception: 
                 print("Hiba:  search_play url extract")
                 return False
-        if info['webpage_url_basename'] == 'watch':
-           self.playlist_list.append({ 'source': item, 'title': info['title'], 'channel': info['channel'] })
-        else:
-            for videos in  info['entries']:
-                if videos != None:
-                    if videos['channel'] != None:
-                        self.playlist_list.append({ 'source': videos['url'], 'title': videos['title'], 'channel': videos['channel']})
-        return self.playlist_list
+        
 
     def play_next(self):
         if len(self.music_queue) > 0 :
@@ -120,7 +128,6 @@ class music_cog(commands.Cog):
     
     @commands.command(name="play", aliases=["p","playing"], help="Plays a selected song from youtube")
     async def play(self, ctx, *args):
-        query = " ".join(args)      
         voice_channel = ctx.author.voice.channel
         if voice_channel is None:
             #you need to be connected so that the bot knows where to go
@@ -128,16 +135,23 @@ class music_cog(commands.Cog):
         elif self.is_paused:
             self.vc.resume()
         else:    
-            song = self.search_play(query)
+            song = self.search_play(args[0])
             if type(song) == type(True):
                 await ctx.send("Could not download the song. Incorrect format try another keyword. This could be due to playlist or a livestream format.")
             else:
-                await ctx.send("Song added to the queue")
-                for s in song:
-                    self.music_queue.append([s, voice_channel])
+                if(len(args) >= 2):
+                    try:
+                        for s in reversed(song):
+                            self.music_queue.insert(int(args[1]),[s, voice_channel])
+                    except:
+                        print("error")
+                else:
+                    for s in song:
+                        self.music_queue.append([s, voice_channel])
                 
                 if self.is_playing == False:
                     await self.play_music(ctx)
+                await ctx.send("Song added to the queue")
 
     @commands.command(name="pause",  aliases=["stop"], help="Pauses the current song being played")
     async def pause(self, ctx):
@@ -214,7 +228,7 @@ class music_cog(commands.Cog):
     
 
     @commands.command(name="loop", aliases=["lp"], help="Looping the queue")
-    async def shuffle(self, ctx):
+    async def loop(self, ctx):
         if self.isLooped == False:
             #puts the currently playing song to loop as well
             if self.first != "":
