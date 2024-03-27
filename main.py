@@ -18,8 +18,9 @@ bot = commands.Bot(command_prefix=';', intents=intents)
 #remove the default help command so that we can write out own
 bot.remove_command('help')
 
+with open("token.txt", "r") as file:
+	token = file.readline()
 
-token = "MTA1MzQ1MzY0NTI5Mjc4NTcwNA.GH8hTq.IpRVu6WnA07SnhfgM6PDPkf715_A28BvKJzvOA"
 
 async def main():
     async with bot:
