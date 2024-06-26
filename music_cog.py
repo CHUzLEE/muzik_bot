@@ -1,20 +1,19 @@
-from ast import alias
 from audioop import reverse
 from curses.ascii import islower
-import json
-from pickle import FALSE
-from re import A
 import discord
 from discord.ext import commands
 import random
 import yt_dlp
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import json
 
 #from youtube_dl import YoutubeDL
 
 #TODO ha elmegy a net folytassa, 
-#   spotify, 
-#   put song 1st
 #   queue szamozas
+
+
 
 class music_cog(commands.Cog):
     def __init__(self, bot):
@@ -35,6 +34,16 @@ class music_cog(commands.Cog):
         
         #for extraxting the youtube video information
         self.YDL_OPTIONS = {'format': 'bestaudio/best','extract_flat': True, 'ignoreerrors': True, 'skip_unavailable_fragments': True, 'quiet': False}
+        
+        #initialize spotify
+	with open("spotify_token.txt", "r") as file:
+	token = file.readline()
+        client_id = token
+	token = file.readline()
+        client_secret = token
+        client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+
+        self.sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
         #voice channel info
         self.vc = None
@@ -43,33 +52,53 @@ class music_cog(commands.Cog):
     #search playlist
     def search_play(self, item):
         self.playlist_list = []
-        with  yt_dlp.YoutubeDL(self.YDL_OPTIONS) as ydl:
-            try: 
+        with  yt_dlp.YoutubeDL(self.YDL_OPTIONS) as ydl:  
+            
+            try:
+                if 'spotify' in item:
+                    if 'playlist' in item:
+                        playlist = self.sp.playlist_tracks(item)
+                        for track in playlist['items']:
+                            track_name = track["track"]["name"]
+                            artist_name = track["track"]["artists"][0]['name']
+                            self.playlist_list.append({ 'source': "Spotify", 'title': track_name, 'channel': artist_name })
+                        return self.playlist_list
+                    else:
+                        track_info = self.sp.track(track_id=item)
+                        artist_name = track_info['artists'][0]['name']
+                        song_name = track_info['name']
+                        item = artist_name + " " + song_name
+                        info = ydl.extract_info ("ytsearch:  %s" % item, download=False) 
+                else:
                 #check if its a playlist, and we only extraxt the videos info
-                if '&list=' in item:
-                    info = ydl.extract_info("ytsearch:%s" % item, download=False)['entries'][0]
-                    self.playlist_list.append({ 'source': info['url'], 'title': info['title'], 'channel': info['channel'] })
-                    return self.playlist_list  
-                else: 
-                     info = ydl.extract_info (item, download=False)    
+                    if '&list=' in item:
+                        #"ytsearch:  %s" % 
+                        info = ydl.extract_info(item, download=False)['entries'][0]
+                        self.playlist_list.append({ 'source': info['url'], 'title': info['title'], 'channel': info['channel'] })
+                        return self.playlist_list  
+                    # elif '/watch' in item:
+                    #     info = ydl.extract_info(item, download=False)
+                    else:
+                        #"ytsearch:  %s" %
+                        info = ydl.extract_info ( item, download=False) 
                      
                 if info['webpage_url_basename'] == 'watch':
                     self.playlist_list.append({ 'source': item, 'title': info['title'], 'channel': info['channel'] })
-                else:
+                else: 
                     for videos in  info['entries']:
                         if videos != None and videos['channel'] != None:
                             self.playlist_list.append({ 'source': videos['url'], 'title': videos['title'], 'channel': videos['channel']})
                 return self.playlist_list       
             except Exception: 
                 print("Hiba:  search_play url extract")
-                return False
+                return False             
         
 
     def play_next(self):
         if len(self.music_queue) > 0 :
             self.is_playing = True
             #get the first url
-            m_url = self.music_queue[0][0]['source']
+            m_url = self.music_queue[0][0]
             self.first = self.music_queue[0][0]['title'] + ' -> Uploader: ' + self.music_queue[0][0]['channel']
             #remove the first element as you are currently playing it
             if self.isLooped:
@@ -77,8 +106,12 @@ class music_cog(commands.Cog):
             else:
                 self.music_queue.pop(0)
             with  yt_dlp.YoutubeDL(self.YDL_OPTIONS) as ydl:
-                try: 
-                    info =  ydl.extract_info (m_url, download=False)
+                try:
+                    if 'Spotify' in m_url['source']:
+                        info =  ydl.extract_info ("ytsearch:  %s" % (m_url['title'] + " - " + m_url['channel']), download=False)
+                        info = ydl.extract_info (info['entries'][0]['url'], download=False)
+                    else:
+                        info =  ydl.extract_info (m_url['source'], download=False)
                 except Exception: 
                     print("Hiba:  play_next() method  url extract")
             if info  == None:
@@ -94,7 +127,7 @@ class music_cog(commands.Cog):
         if len(self.music_queue) > 0:
             self.is_playing = True
 
-            m_url = self.music_queue[0][0]['source']
+            m_url = self.music_queue[0][0]
             
             #try to connect to voice channel if you are not already connected
             if self.vc == None or not self.vc.is_connected():
@@ -115,7 +148,11 @@ class music_cog(commands.Cog):
                 self.music_queue.pop(0)
             with  yt_dlp.YoutubeDL(self.YDL_OPTIONS) as ydl:
                 try: 
-                    info =  ydl.extract_info (m_url, download=False)
+                    if 'Spotify' in m_url['source']:
+                        info =  ydl.extract_info ("ytsearch:  %s" % (m_url['title'] + " - " + m_url['channel']), download=False)
+                        info = ydl.extract_info (info['entries'][0]['url'], download=False)
+                    else:
+                        info =  ydl.extract_info (m_url['source'], download=False)
                 except Exception: 
                     print("Hiba:  play_music() method  url extract")
             if info == None:
@@ -128,10 +165,11 @@ class music_cog(commands.Cog):
     
     @commands.command(name="play", aliases=["p","playing"], help="Plays a selected song from youtube")
     async def play(self, ctx, *args):
-        voice_channel = ctx.author.voice.channel
-        if voice_channel is None:
+        
+        if ctx.author.voice is None:
             #you need to be connected so that the bot knows where to go
-            await ctx.send("Connect to a voice channel!")
+            await ctx.send("Cant add song, first connect to a voice channel!")
+            return
         elif self.is_paused:
             self.vc.resume()
         else:    
@@ -139,19 +177,20 @@ class music_cog(commands.Cog):
             if type(song) == type(True):
                 await ctx.send("Could not download the song. Incorrect format try another keyword. This could be due to playlist or a livestream format.")
             else:
+                voice_channel = ctx.author.voice.channel
                 if(len(args) >= 2):
                     try:
                         for s in reversed(song):
-                            self.music_queue.insert(int(args[1]),[s, voice_channel])
+                            self.music_queue.insert(int(args[-1]),[s, voice_channel])
                     except:
-                        print("error")
+                        print("error in adding song to a specific place in queue")
                 else:
                     for s in song:
                         self.music_queue.append([s, voice_channel])
                 
                 if self.is_playing == False:
                     await self.play_music(ctx)
-                await ctx.send("Song added to the queue")
+                await ctx.send("Song(s) added to the queue")
 
     @commands.command(name="pause",  aliases=["stop"], help="Pauses the current song being played")
     async def pause(self, ctx):
