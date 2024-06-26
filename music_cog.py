@@ -36,12 +36,10 @@ class music_cog(commands.Cog):
         self.YDL_OPTIONS = {'format': 'bestaudio/best','extract_flat': True, 'ignoreerrors': True, 'skip_unavailable_fragments': True, 'quiet': False}
         
         #initialize spotify
-	with open("spotify_token.txt", "r") as file:
-	token = file.readline()
-        client_id = token
-	token = file.readline()
-        client_secret = token
-        client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+        with open("spotify_token.txt", "r") as file:
+            client_id = file.readline()
+            client_secret = file.readline()
+            client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
 
         self.sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
