@@ -37,7 +37,7 @@ class music_cog(commands.Cog):
         
         #initialize spotify
         with open("spotify_token.txt", "r") as file:
-            client_id = file.readline()
+            client_id = file.readline().rstrip('\n')
             client_secret = file.readline()
             client_credentials_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
 
