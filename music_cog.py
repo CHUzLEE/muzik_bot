@@ -62,7 +62,6 @@ class music_cog(commands.Cog):
                             self.playlist_list.append({ 'source': "Spotify", 'title': track_name, 'channel': artist_name })
                         return self.playlist_list
                     elif 'album' in item: 
-                        print("TODO")
                         playlist = self.sp.album_tracks(item)
                         for track in playlist['items']:
                             track_name = track["name"]
@@ -78,27 +77,21 @@ class music_cog(commands.Cog):
                         # item = artist_name + " " + song_name
                         # info = ydl.extract_info ("ytsearch:  %s" % item, download=False) 
                 else:
-                #check if its a playlist, and we only extraxt the videos info
+                #check if its a playlist, and we only extraxt the videos info (its faster)
                     if 'list=' in item:
                         #"ytsearch:  %s" % 
-                        info = ydl.extract_info(item, download=False)['entries'][0]
-                        self.playlist_list.append({ 'source': info['url'], 'title': info['title'], 'channel': info['channel'] })
-                        return self.playlist_list  
-                    # elif '/watch' in item:
-                    #     info = ydl.extract_info(item, download=False)
+                        info = ydl.extract_info(item, download=False)['entries']
+                        print(info)
+                        for videos in info:
+                            if videos != None and videos['channel'] != None:
+                                self.playlist_list.append({ 'source': videos['url'], 'title': videos['title'], 'channel': videos['channel']})
+                   #elif '/watch' in item:
+                   #    info = ydl.extract_info(item, download=False)
                     else:
                         #"ytsearch:  %s" %
                         info = ydl.extract_info (item, download=False)
                         self.playlist_list.append({ 'source': item, 'title': info['title'], 'channel': info['channel'] })
                     #TODO lehessen link nelkul keresni
-
-                     
-                if info['webpage_url_basename'] == 'watch':
-                    self.playlist_list.append({ 'source': item, 'title': info['title'], 'channel': info['channel'] })
-                else: 
-                    for videos in  info['entries']:
-                        if videos != None and videos['channel'] != None:
-                            self.playlist_list.append({ 'source': videos['url'], 'title': videos['title'], 'channel': videos['channel']})
                 return self.playlist_list
             except Exception: 
                 print("Hiba:  search_play url extract")
