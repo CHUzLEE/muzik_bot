@@ -79,11 +79,11 @@ class music_cog(commands.Cog):
                         # info = ydl.extract_info ("ytsearch:  %s" % item, download=False) 
                 else:
                 #check if its a playlist, and we only extraxt the videos info
-                    if '&list=' in item:
+                    if 'list=' in item:
                         #"ytsearch:  %s" % 
                         info = ydl.extract_info(item, download=False)['entries'][0]
                         self.playlist_list.append({ 'source': info['url'], 'title': info['title'], 'channel': info['channel'] })
-                        #return self.playlist_list  
+                        return self.playlist_list  
                     # elif '/watch' in item:
                     #     info = ydl.extract_info(item, download=False)
                     else:
