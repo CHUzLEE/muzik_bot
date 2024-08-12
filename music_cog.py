@@ -60,14 +60,12 @@ class music_cog(commands.Cog):
                             track_name = track["track"]["name"]
                             artist_name = track["track"]["artists"][0]['name']
                             self.playlist_list.append({ 'source': "Spotify", 'title': track_name, 'channel': artist_name })
-                        return self.playlist_list
                     elif 'album' in item: 
                         playlist = self.sp.album_tracks(item)
                         for track in playlist['items']:
                             track_name = track["name"]
                             artist_name = track["artists"][0]['name']
                             self.playlist_list.append({ 'source': "Spotify", 'title': track_name, 'channel': artist_name })
-                        return self.playlist_list
                     else:
                         track_info = self.sp.track(track_id=item)
                         artist_name = track_info['artists'][0]['name']
@@ -76,12 +74,21 @@ class music_cog(commands.Cog):
                         return self.playlist_list
                         # item = artist_name + " " + song_name
                         # info = ydl.extract_info ("ytsearch:  %s" % item, download=False) 
+                elif 'soundcloud' in item:
+                    info = ydl.extract_info (item, download=False)
+                    if 'playlist' in info['_type']:
+                        for tracks in info['entries']:
+                            URL = tracks['url'].split('/')
+                            track_name = URL[-1]
+                            artist_name = URL[-2]
+                            self.playlist_list.append({ 'source': tracks['url'], 'title': track_name, 'channel': artist_name})
+                    else:
+                        self.playlist_list.append({ 'source': info['original_url'], 'title': info['title'], 'channel': info['uploader']})
                 else:
                 #check if its a playlist, and we only extraxt the videos info (its faster)
                     if 'list=' in item:
                         #"ytsearch:  %s" % 
                         info = ydl.extract_info(item, download=False)['entries']
-                        print(info)
                         for videos in info:
                             if videos != None and videos['channel'] != None:
                                 self.playlist_list.append({ 'source': videos['url'], 'title': videos['title'], 'channel': videos['channel']})
