@@ -71,12 +71,12 @@ class music_cog(commands.Cog):
                         artist_name = track_info['artists'][0]['name']
                         song_name = track_info['name']
                         self.playlist_list.append({ 'source': "Spotify", 'title': track_name, 'channel': artist_name })
-                        return self.playlist_list
                         # item = artist_name + " " + song_name
                         # info = ydl.extract_info ("ytsearch:  %s" % item, download=False) 
                 elif 'soundcloud' in item:
                     info = ydl.extract_info (item, download=False)
-                    if 'playlist' in info['_type']:
+                    if '_type' in info: 
+                    # if 'playlist' in info['_type']:
                         for tracks in info['entries']:
                             URL = tracks['url'].split('/')
                             track_name = URL[-1]
